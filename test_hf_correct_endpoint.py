@@ -1,35 +1,40 @@
-import os
-import base64
-from huggingface_hub import InferenceClient
+from openai import OpenAI
 
-# Use your token
-HF_TOKEN = "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" 
-IMAGE_PATH = r"C:\Users\Optiplex\Downloads\EDA4.png"
+# 1. SETUP: Ensure your token is correct
+client = OpenAI(
+    base_url="https://router.huggingface.co/v1", 
+    api_key="hf_your_token_here" 
+)
 
-client = InferenceClient(api_key=HF_TOKEN)
-
-# 1. Encode local image
-with open(IMAGE_PATH, "rb") as f:
-    base64_image = base64.b64encode(f.read()).decode("utf-8")
-
-# 2. Try Qwen2.5-VL (No gating, works immediately)
-try:
-    response = client.chat.completions.create(
-        model="Qwen/Qwen2.5-VL-72B-Instruct:novita", # Explicitly calling Novita provider
-        messages=[
+messages = [
+    {
+        "role": "user",
+        "content": [
             {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": "Describe this EDA chart in detail."},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/png;base64,{base64_image}"}
-                    }
-                ]
+                "type": "image_url",
+                "image_url": {
+                    "url": "https://qianwen-res.oss-accelerate.aliyuncs.com/Qwen3.5/demo/CI_Demo/mathv-1327.jpg"
+                }
+            },
+            {
+                "type": "text",
+                "text": "The centres of the four illustrated circles are in the corners of the square. The two big circles touch each other and also the two little circles. With which factor do you have to multiply the radii of the little circles to obtain the radius of the big circles?\nChoices:\n(A) 2/9\n(B) sqrt(5)\n(C) 0.8 * pi\n(D) 2.5\n(E) 1+sqrt(2)"
             }
         ]
-    )
-    print("\n✅ Success!")
-    print(response.choices[0].message.content)
-except Exception as e:
-    print(f"\n❌ Error: {e}")
+    }
+]
+
+# 2. EXECUTE: Switched from ':auto' to ':together'
+response = client.chat.completions.create(
+    model="Qwen/Qwen3.5-397B-A17B:together", 
+    messages=messages,
+    max_tokens=2000,
+    temperature=0.6,
+    top_p=0.95,
+    extra_body={
+        "top_k": 20,
+    }, 
+)
+
+# 3. PRINT: Changed 'chat_response' to 'response' to avoid NameError
+print("Chat response:", response.choices[0].message.content)

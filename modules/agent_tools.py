@@ -1,4 +1,5 @@
 from langchain_core.tools import tool
+from langchain.tools import Tool
 from langchain_classic.agents import AgentExecutor, create_react_agent
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate

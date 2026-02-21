@@ -36,6 +36,7 @@ if not loaded:
 # API Keys
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
 # Debug: Check if key is loaded
 if GROQ_API_KEY:

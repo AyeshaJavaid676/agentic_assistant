@@ -5,7 +5,7 @@ from pathlib import Path
 from modules.pdf_extractor import PDFExtractor
 from modules.multimodal_processor import MultimodalProcessor  # Updated to use Qwen
 from modules.vector_store import VectorStore
-from modules.multi_agent import SupervisorAgent
+from modules.agent_tools import AgentAssistant
 from modules.tts_service import TTSService
 from utils.helpers import cleanup_temp_files
 
@@ -204,7 +204,7 @@ with st.sidebar:
                     
                     # Create agent
                     st.info("🤖 Setting up AI agent...")
-                    st.session_state.agent = SupervisorAgent(vectorstore)
+                    st.session_state.agent = AgentAssistant(vectorstore)
                     st.session_state.processed = True
                     
                     # Clean up
