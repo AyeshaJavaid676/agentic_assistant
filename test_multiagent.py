@@ -19,7 +19,7 @@ except:
 supervisor = SupervisorAgent(vectorstore)
 
 # Ask a question
-question = input("\n❓ Tell about my skills and n8n: ")
+question = input("\n❓ Tell about python coding : ")
 if question:
     print(f"\n🔄 Processing: '{question}'")
     response = supervisor.run(question)
