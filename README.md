@@ -46,7 +46,7 @@
 | **🎨 Modern UI** | Streamlit interface with falling snow animation |
 
 ## 🏗️ System Architecture
-![Medical Advice Engine Diagram](https://raw.githubusercontent.com/AyeshaJavaid676/Final-Project-AI-Doctor/main/Tech_Diagram.jpeg)
+![Architecture Diagram (https://github.com/AyeshaJavaid676/agentic_assistant/blob/master/Blank%20diagram%20(2).jpeg)
 
 ## 🤖 Agent Responsibilities Matrix
 
@@ -155,75 +155,3 @@ EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 ** CHUNK_OVERLAP = 50
 ** MAX_IMAGES_PER_PDF = 100
 ** SEARCH_RESULTS_COUNT = 10
-## 🚀 Usage Guide
-### Starting the Application
-bash ```
-streamlit run main.py
-```
-## Workflow
-Document Upload
-
-Place PDFs in data/pdfs/ folder
-
-Or upload via sidebar interface
-
-Automatic text extraction & chunking
-
-Image Processing
-
-Qwen 3.5 Vision analyzes charts/graphs
-
-Generates detailed descriptions
-
-Stores with page references
-
-Ask Questions
-
-text
-🔍 Example Queries:
-- "What outliers were found in my EDA project?"
-- "Explain the function calculate_mean() in my code"
-- "Find all classes related to data visualization"
-- "Debug this error: KeyError in dictionary"
-- "Show me examples of list comprehension"
-Get Answers with Sources
-
-text
-📊 WHAT YOUR DOCUMENT SAYS
-According to your EDA report (Page 8):
-- **19 outliers** detected in Income variable
-- Premium "High-Income Customers" segment identified
-
-🔍 DETAILED ANALYSIS
-The Z-score method used shows significance at p < 0.05...
-
-📚 Sources (3)
-• From EDA_Portfolio.pdf, Page 8
-• From Python_Guide.pdf, Page 23
-📊 Component Details
-1. PDF Extractor
-python
-class PDFExtractor:
-    - extract_text(): Page-level text extraction
-    - extract_images(): Base64 image extraction
-    - metadata preservation: page numbers, document names
-2. Multimodal Processor
-python
-class MultimodalProcessor:
-    - generate_image_description(): Qwen 3.5 Vision integration
-    - create_text_embedding(): Vector embeddings
-    - process_image_for_rag(): Complete pipeline
-3. Vector Store
-python
-class VectorStore:
-    - create_from_documents(): FAISS index creation
-    - add_documents(): Incremental updates
-    - search(): Semantic similarity search
-    - load_existing(): Persistent storage
-4. Multi-Agent System
-python
-class SupervisorAgent:
-    - run(): Orchestrates all agents
-    - prioritizes document info over web
-    - synthesizes final answers
-
