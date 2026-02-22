@@ -3,11 +3,13 @@ import tempfile
 import os
 from pathlib import Path
 from modules.pdf_extractor import PDFExtractor
-from modules.multimodal_processor import MultimodalProcessor  # Updated to use Qwen
+from modules.multimodal_processor import MultimodalProcessor
 from modules.vector_store import VectorStore
 from modules.multi_agent import SupervisorAgent
 from modules.tts_service import TTSService
 from utils.helpers import cleanup_temp_files
+import time
+import re
 
 # ===== ADD THE FUNCTION HERE =====
 def load_existing_pdfs():
@@ -22,6 +24,19 @@ def load_existing_pdfs():
     # Get list of PDFs in folder
     existing_pdfs = list(Path(pdf_folder).glob("*.pdf"))
     
+    # Initialize vectorstore variable
+    vectorstore = None
+    
+    # FIRST: Try to load existing vector store (even if no new PDFs)
+    if os.path.exists("data/vectorstore/index.faiss"):
+        try:
+            vectorstore = VectorStore()
+            vectorstore.load_existing()
+            print(f"✅ Found existing vector store with pre-loaded documents")
+        except Exception as e:
+            print(f"⚠️ Could not load vector store: {e}")
+            vectorstore = None
+    
     # Load previously processed PDFs list
     processed_pdfs = []
     if os.path.exists(processed_file):
@@ -35,25 +50,25 @@ def load_existing_pdfs():
         st.info(f"📚 Found {len(new_pdfs)} new PDFs in data/pdfs folder. Processing...")
         
         all_documents = []
-        vectorstore = VectorStore()
         
-        # Try to load existing vector store first
-        if os.path.exists("data/vectorstore/index.faiss"):
-            vectorstore.load_existing()
+        # If no vectorstore exists yet, create one
+        if vectorstore is None:
+            vectorstore = VectorStore()
         
         for pdf_path in new_pdfs:
             st.write(f"📄 Processing: {pdf_path.name}")
             extractor = PDFExtractor(str(pdf_path))
             texts = extractor.extract_text()
             
-            # Add text documents (no images for now)
+            # Add text documents
             for text in texts:
                 all_documents.append({
                     "content": text["content"],
                     "metadata": {
                         "type": "text", 
                         "page": text["page"],
-                        "source": str(pdf_path.name)
+                        "source": str(pdf_path.name),
+                        "document": str(pdf_path.name)
                     }
                 })
             extractor.close()
@@ -72,8 +87,47 @@ def load_existing_pdfs():
             
             st.success(f"✅ Processed {len(new_pdfs)} existing PDFs!")
     
-    return len(existing_pdfs)
-# ===== END OF FUNCTION =====
+    # Return both the list of PDFs and the vectorstore
+    return existing_pdfs, vectorstore
+
+def extract_sources_from_response(response_text, search_results):
+    """
+    Extract source citations from the response and match with search results
+    """
+    sources = []
+    
+    # Look for page references in the response
+    page_matches = re.findall(r'\[Page (\d+)\]', response_text)
+    image_matches = re.findall(r'\[Image on page (\d+)\]', response_text)
+    
+    # Add text page sources
+    for page in set(page_matches):
+        # Find the corresponding document in search results
+        for doc in search_results:
+            if doc.metadata.get('page') == int(page) and doc.metadata.get('type') == 'text':
+                sources.append({
+                    "type": "text",
+                    "page": page,
+                    "document": doc.metadata.get('document', 'Unknown'),
+                    "preview": doc.page_content[:200] + "...",
+                    "source_type": "PDF Text"
+                })
+                break
+    
+    # Add image sources
+    for page in set(image_matches):
+        for doc in search_results:
+            if doc.metadata.get('page') == int(page) and doc.metadata.get('type') == 'image':
+                sources.append({
+                    "type": "image",
+                    "page": page,
+                    "document": doc.metadata.get('document', 'Unknown'),
+                    "preview": doc.page_content[:200] + "...",
+                    "source_type": "Image Description"
+                })
+                break
+    
+    return sources
 
 # Page config
 st.set_page_config(
@@ -82,23 +136,96 @@ st.set_page_config(
     layout="wide"
 )
 
-load_existing_pdfs()
-
 # Title
 st.title("📚 Agentic PDF Assistant")
-st.markdown("Upload a PDF and ask questions about it. I can read text, describe images, and search the web!")
+st.markdown("Ask questions about your PDFs - upload new ones or query existing documents!")
 
-# Initialize session state
+# Initialize session state - MOVED BEFORE any chat elements
 if 'processed' not in st.session_state:
     st.session_state.processed = False
 if 'temp_file' not in st.session_state:
     st.session_state.temp_file = None
-if 'last_response' not in st.session_state:
-    st.session_state.last_response = None
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []  # Store all messages
+if 'vectorstore' not in st.session_state:
+    st.session_state.vectorstore = None
+if 'agent' not in st.session_state:
+    st.session_state.agent = None
+if 'existing_pdfs' not in st.session_state:
+    st.session_state.existing_pdfs = []
+
+# Load existing PDFs and initialize vector store
+existing_pdfs, vectorstore = load_existing_pdfs()
+st.session_state.existing_pdfs = existing_pdfs
+
+# Just check if PDFs exist and vectorstore files exist
+if existing_pdfs and os.path.exists("data/vectorstore/index.faiss") and st.session_state.vectorstore is None:
+    # Vector store files exist, load them
+    temp_store = VectorStore()
+    temp_store.load_existing()
+    st.session_state.vectorstore = temp_store
+    st.session_state.agent = SupervisorAgent(temp_store)
+    st.session_state.processed = True
+    
+    print(f"✅ Vector store loaded with pre-loaded documents!")
+    
+    # Create welcome message
+    pdf_list = "\n".join([f"   • {pdf.name}" for pdf in existing_pdfs[:5]])
+    if len(existing_pdfs) > 5:
+        pdf_list += f"\n   • ... and {len(existing_pdfs)-5} more"
+    
+    welcome_msg = f"""📚 **Welcome! I have {len(existing_pdfs)} PDF(s) pre-loaded and ready:**
+
+{pdf_list}
+
+You can start asking questions about these documents right away! Try asking:
+- "What outliers were found in my EDA project?"
+- "Tell me about the income analysis in my documents"
+- "What are the key findings in my PDFs?"
+
+*No need to upload anything - your documents are already loaded!* 🎉"""
+    
+    st.session_state.chat_history.append({
+        "role": "assistant",
+        "content": welcome_msg,
+        "timestamp": time.strftime("%H:%M:%S"),
+        "sources": []
+    })
+
+# Initialize vector store and agent if not already done
+if st.session_state.vectorstore is None and vectorstore is not None:
+    st.session_state.vectorstore = vectorstore
+    st.session_state.agent = SupervisorAgent(vectorstore)
+    st.session_state.processed = True
+    
+    # Add welcome message showing available PDFs
+    if existing_pdfs:
+        pdf_names = "\n".join([f"   • {pdf.name}" for pdf in existing_pdfs[:5]])
+        more_text = f"\n   • ... and {len(existing_pdfs)-5} more" if len(existing_pdfs) > 5 else ""
+        
+        welcome_msg = f"""📚 **Welcome! I have {len(existing_pdfs)} PDF(s) pre-loaded and ready:**
+
+{pdf_names}{more_text}
+
+You can start asking questions about these documents right away, or upload new ones using the sidebar."""
+        
+        st.session_state.chat_history.append({
+            "role": "assistant",
+            "content": welcome_msg,
+            "timestamp": time.strftime("%H:%M:%S"),
+            "sources": []
+        })
 
 # Sidebar
 with st.sidebar:
     st.header("⚙️ Settings")
+    
+    # Show existing PDFs count
+    if st.session_state.existing_pdfs:
+        st.success(f"📚 **{len(st.session_state.existing_pdfs)} PDF(s)** pre-loaded")
+        with st.expander("View loaded PDFs"):
+            for pdf in st.session_state.existing_pdfs:
+                st.write(f"• {pdf.name}")
     
     # Options
     process_images = st.checkbox("🖼️ Process images", value=True)
@@ -110,7 +237,7 @@ with st.sidebar:
     
     # File upload
     uploaded_file = st.file_uploader(
-        "📄 Upload PDF", 
+        "📄 Upload New PDF", 
         type="pdf",
         help="Upload any PDF document"
     )
@@ -122,15 +249,17 @@ with st.sidebar:
         if st.button("🚀 Process PDF", type="primary"):
             with st.spinner("Processing PDF... This may take a minute..."):
                 try:
-                    # Save uploaded file temporarily
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-                        tmp.write(uploaded_file.getvalue())
-                        tmp_path = tmp.name
-                        st.session_state.temp_file = tmp_path
+                    # Save uploaded file permanently
+                    pdf_folder = "data/pdfs"
+                    os.makedirs(pdf_folder, exist_ok=True)
+                    pdf_path = os.path.join(pdf_folder, uploaded_file.name)
+                    
+                    with open(pdf_path, "wb") as f:
+                        f.write(uploaded_file.getvalue())
                     
                     # Extract text and images
                     st.info("📄 Extracting text...")
-                    extractor = PDFExtractor(tmp_path)
+                    extractor = PDFExtractor(pdf_path)
                     texts = extractor.extract_text()
                     
                     # Prepare documents
@@ -143,7 +272,9 @@ with st.sidebar:
                             "metadata": {
                                 "type": "text", 
                                 "page": text["page"],
-                                "source": "pdf_text"
+                                "source": "pdf_text",
+                                "document": uploaded_file.name,
+                                "filename": uploaded_file.name
                             }
                         })
                     
@@ -166,11 +297,6 @@ with st.sidebar:
                                 # Process image with Qwen
                                 description = vision.generate_image_description(img["base64"])
 
-                                # Debug: print what we got
-                                print(f"🔍 Image {i+1} on page {img['page']}:")
-                                print(f"   Description length: {len(description) if description else 0}")
-                                print(f"   Preview: {description[:100] if description else 'None'}...")
-
                                 # Ensure description is never None
                                 if description is None:
                                     description = "[Image description unavailable]"
@@ -183,6 +309,8 @@ with st.sidebar:
                                         "type": "image", 
                                         "page": img["page"],
                                         "source": "pdf_image",
+                                        "document": uploaded_file.name,
+                                        "filename": uploaded_file.name,
                                         "image_index": img.get("index", 0)
                                     }
                                 })
@@ -197,15 +325,32 @@ with st.sidebar:
                         else:
                             st.info("No images found in the scanned pages.")
                     
-                    # Create vector store
-                    st.info("📚 Creating searchable database...")
-                    vectorstore = VectorStore()
-                    vectorstore.create_from_documents(documents)
+                    # Create or update vector store
+                    st.info("📚 Updating searchable database...")
                     
-                    # Create agent
-                    st.info("🤖 Setting up AI agent...")
-                    st.session_state.agent = SupervisorAgent(vectorstore)
+                    if st.session_state.vectorstore is None:
+                        st.session_state.vectorstore = VectorStore()
+                    
+                    # Check if vector store already exists
+                    if os.path.exists("data/vectorstore/index.faiss"):
+                        st.session_state.vectorstore.load_existing()
+                        st.session_state.vectorstore.add_documents(documents)
+                    else:
+                        st.session_state.vectorstore.create_from_documents(documents)
+                    
+                    # Create or update agent
+                    if st.session_state.agent is None:
+                        st.session_state.agent = SupervisorAgent(st.session_state.vectorstore)
+                    
                     st.session_state.processed = True
+                    
+                    # Add success message to chat
+                    st.session_state.chat_history.append({
+                        "role": "assistant",
+                        "content": f"✅ **PDF '{uploaded_file.name}' processed successfully!**\n\nAdded {len(texts)} pages and {len(images) if images else 0} images to your knowledge base. You can now ask questions about it.",
+                        "timestamp": time.strftime("%H:%M:%S"),
+                        "sources": []
+                    })
                     
                     # Clean up
                     extractor.close()
@@ -218,105 +363,149 @@ with st.sidebar:
                     import traceback
                     st.code(traceback.format_exc())
     
-    # Clear button
-    if st.session_state.processed:
-        if st.button("🔄 Process New PDF"):
-            # Clean up temp file
-            if st.session_state.temp_file and os.path.exists(st.session_state.temp_file):
-                os.unlink(st.session_state.temp_file)
-            st.session_state.processed = False
-            st.session_state.last_response = None
+    # Clear chat history button
+    if st.session_state.chat_history:
+        st.divider()
+        if st.button("🗑️ Clear Chat History"):
+            st.session_state.chat_history = []
             st.rerun()
 
-# Main chat area
-if st.session_state.processed:
-    st.divider()
-    
-    # Question input
-    question = st.text_input(
-        "💬 Ask a question about your PDF:",
-        placeholder="e.g., What is this document about? Summarize the key points. Describe any charts or images."
-    )
-    
-    col1, col2 = st.columns([1, 5])
-    with col1:
-        ask_button = st.button("🔍 Ask", type="primary", use_container_width=True)
-    
-    if ask_button and question:
-        with st.spinner("Thinking..."):
-            # Get response from agent
-            response = st.session_state.agent.run(question)
+# ===== CHAT INTERFACE - ALWAYS VISIBLE =====
+st.divider()
+
+# Display chat history (even if no PDF is processed yet)
+chat_container = st.container()
+
+with chat_container:
+    for message in st.session_state.chat_history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
             
-            # Store in session state for later use
-            st.session_state.last_response = response['output']
+            # Display sources if available
+            if message["role"] == "assistant" and "sources" in message and message["sources"]:
+                with st.expander(f"📚 Sources ({len(message['sources'])})"):
+                    for i, source in enumerate(message["sources"], 1):
+                        source_type = source.get("source_type", "Document")
+                        page = source.get("page", "?")
+                        doc_name = source.get("document", "Unknown")
+                        
+                        if source.get("type") == "image":
+                            st.markdown(f"**🖼️ Source {i}:** {source_type} from **{doc_name}**, Page **{page}**")
+                        else:
+                            st.markdown(f"**📄 Source {i}:** {source_type} from **{doc_name}**, Page **{page}**")
+                        
+                        st.markdown(f"*Preview:* {source.get('preview', '')}")
+                        st.divider()
             
-            # Display answer
-            st.markdown("### 📝 Answer")
-            st.write(response['output'])
-            
-            # Optional: Show thought process
-            with st.expander("🤔 Agent's thought process"):
-                st.info("Check the terminal for verbose agent output")
+            # Add audio button for assistant messages
+            if message["role"] == "assistant" and len(message["content"]) > 10:
+                col1, col2 = st.columns([0.1, 0.9])
+                with col1:
+                    audio_key = f"audio_{hash(message['content'])}"
+                    if st.button("🔊", key=audio_key, help="Listen to this response"):
+                        with st.spinner("🔊 Generating audio..."):
+                            try:
+                                from gtts import gTTS
+                                import base64
+                                import io
+                                
+                                tts = gTTS(text=message["content"], lang='en', slow=False)
+                                fp = io.BytesIO()
+                                tts.write_to_fp(fp)
+                                fp.seek(0)
+                                audio_bytes = fp.read()
+                                audio_base64 = base64.b64encode(audio_bytes).decode()
+                                
+                                audio_html = f"""
+                                    <audio autoplay controls style="width: 100%; margin-top: 5px;">
+                                        <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+                                    </audio>
+                                """
+                                st.markdown(audio_html, unsafe_allow_html=True)
+                            except Exception as e:
+                                st.error(f"🔊 Audio Error: {str(e)}")
+
+# Chat input - ALWAYS VISIBLE
+question = st.chat_input(
+    "Ask a question about your PDFs...",
+    key="chat_input"
+)
+
+if question:
+    # Add user message to history
+    st.session_state.chat_history.append({
+        "role": "user",
+        "content": question,
+        "timestamp": time.strftime("%H:%M:%S")
+    })
     
-    # Text-to-speech option
-    if st.session_state.last_response:
-        if st.button("🔊 Listen to answer"):
-            with st.spinner("Generating audio..."):
-                try:
-                    from gtts import gTTS
-                    import base64
-                    import io
-                    
-                    # Generate speech from stored response
-                    tts = gTTS(text=st.session_state.last_response, lang='en', slow=False)
-                    
-                    # Save to bytes buffer
-                    fp = io.BytesIO()
-                    tts.write_to_fp(fp)
-                    fp.seek(0)
-                    
-                    # Convert to base64 for embedding
-                    audio_bytes = fp.read()
-                    audio_base64 = base64.b64encode(audio_bytes).decode()
-                    
-                    # Create HTML audio element with autoplay
-                    audio_html = f"""
-                        <audio autoplay controls style="width: 100%; margin-top: 10px;">
-                            <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
-                            Your browser does not support the audio element.
-                        </audio>
-                    """
-                    
-                    # Display the audio player
-                    st.markdown(audio_html, unsafe_allow_html=True)
-                    
-                except Exception as e:
-                    st.error(f"🔊 Audio Error: {str(e)}")
+    # Check if vector store exists
+    if st.session_state.vectorstore is None:
+        # No PDFs loaded yet
+        response = """⚠️ **No PDFs have been loaded yet.**
+
+Please upload a PDF using the sidebar or add documents to the `data/pdfs/` folder.
+
+**Available options:**
+1. 📤 Use the file uploader in the sidebar
+2. 📁 Place PDF files in `data/pdfs/` folder and restart the app
+3. 🔄 Refresh after adding files"""
+        
+        st.session_state.chat_history.append({
+            "role": "assistant",
+            "content": response,
+            "timestamp": time.strftime("%H:%M:%S"),
+            "sources": []
+        })
+    else:
+        # Get response from agent
+        with st.spinner("🤔 Thinking..."):
+            try:
+                # Search for relevant documents
+                search_results = st.session_state.vectorstore.search(question, k=10)
+                
+                # Get agent response
+                response = st.session_state.agent.run(question)
+                answer = response['output']
+                
+                # Extract sources
+                sources = extract_sources_from_response(answer, search_results)
+                
+                # If no sources found but we have search results, add them
+                if not sources and search_results:
+                    for doc in search_results[:3]:
+                        doc_type = doc.metadata.get('type', 'text')
+                        sources.append({
+                            "type": doc_type,
+                            "page": doc.metadata.get('page', '?'),
+                            "document": doc.metadata.get('document', 'Unknown'),
+                            "preview": doc.page_content[:200] + "...",
+                            "source_type": "Image Description" if doc_type == 'image' else "PDF Text"
+                        })
+                
+                # Add assistant message
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": answer,
+                    "timestamp": time.strftime("%H:%M:%S"),
+                    "sources": sources
+                })
+                
+                # Store last response for backward compatibility
+                st.session_state.last_response = answer
+                
+            except Exception as e:
+                error_msg = f"❌ **Error:** {str(e)}\n\nPlease try rephrasing your question or check if your PDFs were processed correctly."
+                st.session_state.chat_history.append({
+                    "role": "assistant",
+                    "content": error_msg,
+                    "timestamp": time.strftime("%H:%M:%S"),
+                    "sources": []
+                })
     
-    # Sample questions
-    with st.expander("💡 Sample questions to try"):
-        st.markdown("""
-        - What is the main topic of this document?
-        - Summarize the key findings
-        - Describe any images or charts in the document
-        - What are the important numbers or statistics?
-        - What do the charts tell us about the data?
-        - [If web search enabled] What are the latest developments in this field?
-        """)
-else:
-    # Welcome message
-    st.info("👈 Please upload and process a PDF file from the sidebar to get started!")
-    
-    # Features
-    st.markdown("""
-    ### ✨ Features:
-    - 📄 **Text Extraction**: Read text from any PDF
-    - 🖼️ **Image Understanding**: Describe charts and images using Qwen 3.5 Vision (Hugging Face)
-    - 🌐 **Web Search**: Get real-time information (optional)
-    - 🔍 **Smart Search**: Find relevant information quickly
-    - 🔊 **Text-to-Speech**: Listen to answers (optional)
-    """)
+    # Rerun to update chat display
+    st.rerun()
 
 # Footer
 st.divider()
-st.caption("Made with LangChain, Hugging Face Qwen 3.5 Vision, and Streamlit")
+st.caption("Made with LangChain, Hugging Face Qwen 3.5 Vision, and Streamlit | Answers include source citations for transparency")

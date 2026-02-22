@@ -113,51 +113,236 @@ Be methodical and thorough in your analysis.""",
 
 
 class CodeSynthesizerAgent(BaseSpecialistAgent):
-    """Synthesizer that combines all information - using modern chain syntax"""
+    """Enhanced Synthesizer that prioritizes user documents and incorporates best coding practices"""
+    
     def __init__(self):
-        # We'll override run method to use custom prompt
         self.llm = ChatGroq(api_key=GROQ_API_KEY, model=LLM_MODEL, temperature=0.1)
-        self.prompt = PromptTemplate.from_template(
-            """You are a technical documentation expert. Combine information from multiple sources into clear, helpful answers.
-
-Information gathered: {info}
-
-Original question: {question}
-
-Provide a comprehensive answer with:
-- Brief overview
-- Step-by-step explanation
-- Code examples (with proper formatting)
-- Best practices and tips
-- Common pitfalls to avoid
-
-Make your answer practical and immediately useful for developers."""
-        )
-        self.chain = self.prompt | self.llm | StrOutputParser()
         
-        # Call parent but skip its initialization
+        # Main synthesis prompt with clear prioritization
+        self.main_prompt = PromptTemplate.from_template(
+            """You are a Senior Technical Lead and Code Reviewer. Your role is to synthesize information with a clear hierarchy:
+
+            ===== PRIORITY HIERARCHY (MOST TO LEAST IMPORTANT) =====
+            1️⃣ **USER'S DOCUMENTS** (highest priority - their actual code/project)
+            2️⃣ **WEB RESEARCH** (external information when needed)
+            3️⃣ **GENERAL KNOWLEDGE** (fallback only)
+
+            ===== CURRENT INPUT =====
+            USER'S DOCUMENTS:
+            {document_info}
+            
+            WEB RESEARCH (if any):
+            {web_info}
+            
+            ORIGINAL QUESTION: {question}
+
+            ===== YOUR TASK =====
+            Create a comprehensive answer following this structure:
+
+            ## 📊 WHAT YOUR DOCUMENT SAYS
+            - Start with findings from the user's own documents
+            - Quote specific page numbers, tables, and code snippets
+            - Use exact numbers and findings from their project
+            
+            ## 🔍 DETAILED ANALYSIS
+            - Explain the context using document information
+            - Add web research if it complements (not replaces) document info
+            - Only use general knowledge if documents lack information
+
+            ## 💻 CODE EXAMPLES
+            - If relevant, show code that matches their project context
+            - Use proper language specification in code blocks
+            - Include comments explaining key parts
+
+            ## ✨ BEST PRACTICES
+            - Suggest improvements based on their specific code
+            - Reference industry standards
+            - Include optimization tips
+
+            ## ⚠️ COMMON PITFALLS
+            - Warn about issues relevant to their specific code
+            - Suggest how to avoid them
+
+            ===== FORMATTING RULES =====
+            - Use **bold** for key numbers and findings
+            - Use `code` for inline references
+            - Use ```language for code blocks
+            - Add emojis for visual hierarchy (📊, 🔍, 💻, ✨, ⚠️)
+            - ALWAYS cite sources: "According to your document (Page X)..."
+
+            Remember: The user's own documents contain the MOST RELEVANT information. Make them feel heard and valued by referencing their actual work!"""
+        )
+        
+        # Code review specific prompt
+        self.code_review_prompt = PromptTemplate.from_template(
+            """You are conducting a code review on the user's project.
+
+            USER'S CODE/DOCUMENTS:
+            {document_info}
+            
+            REVIEW FOCUS: {question}
+
+            Provide a thorough code review covering:
+            
+            ## 📁 CODE QUALITY
+            - Readability and maintainability
+            - Naming conventions
+            - Comment quality
+            
+            ## 🐛 POTENTIAL BUGS
+            - Edge cases not handled
+            - Error handling gaps
+            - Logic issues
+            
+            ## ⚡ PERFORMANCE
+            - Inefficient operations
+            - Memory usage concerns
+            - Optimization opportunities
+            
+            ## 🔒 SECURITY
+            - Input validation
+            - Data exposure risks
+            - Best practice violations
+            
+            ## ✅ RECOMMENDATIONS
+            - Specific fixes with code examples
+            - Priority level (High/Medium/Low)
+            - Implementation suggestions
+            
+            Format with clear sections and actionable feedback."""
+        )
+        
+        # Learning path prompt
+        self.learning_prompt = PromptTemplate.from_template(
+            """Create a personalized learning path based on the user's project.
+
+            USER'S PROJECT CONTEXT:
+            {document_info}
+            
+            THEIR QUESTION: {question}
+
+            Provide:
+            
+            ## 🎯 CURRENT PROJECT ANALYSIS
+            - What their code reveals about their skill level
+            - Strengths shown in their work
+            - Areas for growth
+            
+            ## 📚 PERSONALIZED LEARNING PATH
+            - 3-5 specific topics to learn next
+            - Resources tailored to their project
+            - Practice exercises using their code
+            
+            ## 🛠️ TOOLS & EXTENSIONS
+            - VS Code extensions that would help
+            - Libraries to explore
+            - Debugging tools
+            
+            ## 🏆 NEXT PROJECT IDEAS
+            - 2-3 project suggestions building on their skills
+            - What they'd learn from each
+            - Difficulty level estimate"""
+        )
+        
+        # Main chain
+        self.main_chain = self.main_prompt | self.llm | StrOutputParser()
+        self.code_review_chain = self.code_review_prompt | self.llm | StrOutputParser()
+        self.learning_chain = self.learning_prompt | self.llm | StrOutputParser()
+        
         self.name = "Code_Synthesizer"
-        self.description = "Combines code examples, explanations, and web research into comprehensive answers."
+        self.description = "Combines document findings with best practices - prioritizes user's actual code and projects"
+    
+    def _detect_query_type(self, question):
+        """Detect if this is a code review or learning path question"""
+        question_lower = question.lower()
+        
+        review_keywords = ['review', 'feedback', 'improve', 'better', 'quality', 'bug', 'fix', 'error']
+        learning_keywords = ['learn', 'study', 'course', 'tutorial', 'beginner', 'advanced', 'practice']
+        
+        review_score = sum(1 for word in review_keywords if word in question_lower)
+        learning_score = sum(1 for word in learning_keywords if word in question_lower)
+        
+        if review_score > learning_score:
+            return 'review'
+        elif learning_score > review_score:
+            return 'learning'
+        else:
+            return 'general'
+    
+    def _extract_document_info(self, info):
+        """Extract and structure document information"""
+        if not info or info == "No document search results available.":
+            return "No specific document information found."
+        
+        # Try to parse if it's already structured
+        try:
+            if isinstance(info, str) and 'DOCUMENT INFORMATION' in info:
+                return info
+        except:
+            pass
+        
+        return info
     
     def run(self, info, question=None):
-        """Custom run method that takes both info and question"""
+        """Enhanced run method with query type detection"""
         try:
+            # Parse inputs
             if question is None:
-                # If called as a tool, parse the input
                 import json
                 try:
-                    data = json.loads(info)
+                    data = json.loads(info) if isinstance(info, str) else {}
                     info = data.get('info', info)
                     question = data.get('question', '')
                 except:
                     question = ""
             
-            return self.chain.invoke({
-                "info": info,
-                "question": question
-            })
+            # Extract document and web info
+            document_info = "No document information provided."
+            web_info = "No web research provided."
+            
+            if isinstance(info, str):
+                if 'DOCUMENT INFORMATION' in info and 'WEB INFORMATION' in info:
+                    parts = info.split('WEB INFORMATION')
+                    document_info = parts[0].replace('DOCUMENT INFORMATION', '').strip()
+                    web_info = parts[1].strip() if len(parts) > 1 else "No web information provided."
+                else:
+                    document_info = info
+            
+            # Detect query type
+            query_type = self._detect_query_type(question)
+            
+            # Route to appropriate chain
+            if query_type == 'review':
+                result = self.code_review_chain.invoke({
+                    "document_info": document_info,
+                    "question": question
+                })
+            elif query_type == 'learning':
+                result = self.learning_chain.invoke({
+                    "document_info": document_info,
+                    "question": question
+                })
+            else:
+                result = self.main_chain.invoke({
+                    "document_info": document_info,
+                    "web_info": web_info,
+                    "question": question
+                })
+            
+            return result
+            
         except Exception as e:
-            return f"[Synthesizer Error: {str(e)}]"
+            return f"""
+## ❌ Synthesis Error
+
+**Error:** {str(e)}
+
+**What happened:** The synthesizer encountered an issue while processing your request.
+
+**Suggested fix:** Please try rephrasing your question or check if your documents were processed correctly.
+
+*If this persists, check the logs for more details.*
+"""
     
     def as_tool(self):
         """Convert to tool for supervisor"""
@@ -288,6 +473,9 @@ class SupervisorAgent:
         self.web_researcher = WebResearcherAgent()
         self.synthesizer = CodeSynthesizerAgent()
         
+        # Store vectorstore for direct access
+        self.vectorstore = vectorstore
+        
         # Tools for supervisor (only agents that need to be called)
         self.specialist_tools = [
             self.code_expert.as_tool(),
@@ -328,12 +516,18 @@ AVAILABLE SPECIALISTS:
    - Stack Overflow solutions
    - Tutorials and guides
 
+5. Synthesizer - Use for:
+   - Combining information from multiple specialists
+   - Creating comprehensive final answers
+   - ALWAYS call this at the end
+
 DECISION RULES:
-- If question asks about code IN documents → Code_Expert
-- If question asks about concepts or learning → Code_Explainer
-- If question involves errors or bugs → Code_Debugger
-- If question needs external info → Web_Researcher
-- For complex questions, use MULTIPLE specialists then Synthesizer
+- If question asks about code IN documents → Code_Expert FIRST
+- If question asks about concepts or learning → Code_Explainer FIRST
+- If question involves errors or bugs → Code_Debugger FIRST
+- If question needs external info → Web_Researcher FIRST
+- For complex questions, use MULTIPLE specialists
+- ALWAYS end by calling Synthesizer to combine everything
 
 You have access to these tools:
 {tools}
@@ -341,12 +535,15 @@ You have access to these tools:
 Use this format:
 
 Question: {input}
-Thought: Consider which specialists to use
+Thought: Consider which specialists to use based on the question
 Action: one of [{tool_names}]
 Action Input: specific question for that specialist
 Observation: result
 ... (repeat as needed)
-Thought: I have all information - call Synthesizer
+Thought: I have gathered all necessary information
+Action: Synthesizer
+Action Input: Combine all findings into a comprehensive answer
+Observation: synthesized result
 Final Answer: final response
 
 Begin!
@@ -369,15 +566,80 @@ Thought: {agent_scratchpad}"""
         print("="*60)
 
     def run(self, question):
+        """Run the supervisor agent with document-first prioritization"""
         try:
-            # Let supervisor coordinate
-            supervisor_response = self.executor.invoke({"input": question})
-            intermediate_info = supervisor_response['output']
+            print(f"\n🔍 Processing question: '{question}'")
+            print("-"*60)
             
-            # MODERN: Use the updated synthesizer with both info and question
-            print("\n🔄 Synthesizing final answer...")
+            # STEP 1: ALWAYS search documents directly FIRST (bypass agent for reliability)
+            doc_context = "No document information found."
+            doc_results = []
+            
+            if self.vectorstore:
+                try:
+                    print("📚 Searching documents directly...")
+                    doc_results = self.vectorstore.search(question, k=15)  # Get more results
+                    
+                    if doc_results:
+                        print(f"✅ Found {len(doc_results)} relevant document chunks")
+                        
+                        # Build detailed document context
+                        doc_parts = []
+                        for i, doc in enumerate(doc_results, 1):
+                            doc_name = doc.metadata.get('document', doc.metadata.get('source', 'your document'))
+                            page = doc.metadata.get('page', '?')
+                            doc_type = doc.metadata.get('type', 'text')
+                            content = doc.page_content
+                            
+                            # Truncate very long content but keep the important parts
+                            if len(content) > 500:
+                                content = content[:500] + "..."
+                            
+                            type_icon = "🖼️" if doc_type == 'image' else "📄"
+                            doc_parts.append(f"{type_icon} [DOC {i}] From: {doc_name}, Page {page}\n{content}")
+                        
+                        doc_context = "\n\n---\n\n".join(doc_parts)
+                    else:
+                        print("⚠️ No documents found matching the query")
+                        doc_context = "No matching documents found in your PDFs."
+                except Exception as e:
+                    print(f"⚠️ Error searching documents: {e}")
+                    doc_context = f"Error searching documents: {str(e)}"
+            else:
+                print("⚠️ No vectorstore available")
+                doc_context = "No PDF documents have been loaded yet."
+            
+            # STEP 2: Now let the supervisor agent handle any web research needed
+            print("\n🤖 Consulting specialist agents...")
+            supervisor_response = self.executor.invoke({"input": question})
+            agent_output = supervisor_response['output']
+            
+            # STEP 3: Combine document info (HIGH PRIORITY) with agent output
+            combined_info = f"""
+============================================================
+📚 DOCUMENT INFORMATION (HIGHEST PRIORITY - MUST USE THIS FIRST)
+============================================================
+{doc_context}
+
+============================================================
+🤖 AGENT RESEARCH INFORMATION (SECONDARY - USE ONLY IF DOCUMENTS LACK INFO)
+============================================================
+{agent_output}
+
+============================================================
+INSTRUCTIONS FOR SYNTHESIZER:
+1. FIRST analyze the DOCUMENT INFORMATION above - this is the user's actual project data
+2. QUOTE specific findings with page numbers (e.g., "On Page 8, your document shows...")
+3. Use the actual numbers from their documents (like "19 outliers in Income")
+4. ONLY use agent research if documents don't have relevant information
+5. NEVER ignore document information when it exists
+============================================================
+"""
+            
+            # STEP 4: Synthesize with clear prioritization
+            print("\n🔄 Synthesizing answer - prioritizing document findings...")
             final = self.synthesizer.run(
-                info=intermediate_info,
+                info=combined_info,
                 question=question
             )
             
@@ -387,5 +649,14 @@ Thought: {agent_scratchpad}"""
             print(f"❌ Coding Assistant error: {e}")
             import traceback
             traceback.print_exc()
-            return {"output": f"Error: {str(e)}. Please try rephrasing your question."}
+            
+            # Fallback response
+            return {
+                "output": f"""I encountered an error while processing your question: {str(e)}
 
+However, I can see you have PDF documents loaded. Here's what I found in them directly:
+
+{doc_context if 'doc_context' in locals() else 'No documents found.'}
+
+Please try rephrasing your question or check if your PDFs were processed correctly."""
+            }

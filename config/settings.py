@@ -51,7 +51,7 @@ VECTOR_STORE_PATH = "data/vectorstore"
 
 # Models
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-LLM_MODEL = "llama-3.3-70b-versatile"  # For text
+LLM_MODEL = "llama-3.1-8b-instant"  # For text
 VISION_MODEL = "meta-llama/llama-4-scout-17b-16e"  # For images
 
 # Create directories if they don't exist
