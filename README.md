@@ -90,4 +90,140 @@
 ├── Pipfile.lock                         # Locked dependencies
 ├── requirements.txt                     # pip requirements
 └── README.md                            # This file
+```
+
+## ⚙️ Installation
+
+### Prerequisites
+* **Python 3.13+**
+* **Git**
+* **Groq API Key**
+* **Hugging Face Token**
+
+## ⚙️ Setup Instructions
+
+```bash
+# 1. Clone Repository
+git clone [https://github.com/AyeshaJavaid676/CodeOracle-AI.git](https://github.com/AyeshaJavaid676/CodeOracle-AI.git)
+cd CodeOracle-AI
+
+# 2. Create Virtual Environment
+pip install pipenv
+pipenv install
+pipenv shell
+
+# 3. Configure Environment Variables
+echo "GROQ_API_KEY=your_groq_key_here" > .env
+echo "HF_TOKEN=your_huggingface_token_here" >> .env
+
+# 4. Install Dependencies
+pip install -r requirements.txt
+
+# 5. Run Pre-load Script (Optional)
+python preload_vectorstore.py
+
+# 6. Launch Application
+streamlit run main.py
+```
+## 🔧 Configuration
+### Environment Variables (.env)
+env
+```bash
+GROQ_API_KEY=gsk_your_groq_api_key_here
+HF_TOKEN=hf_your_huggingface_token_here
+```
+
+## Settings (config/settings.py)
+```bash
+# API Configuration
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+
+# Model Selection
+LLM_MODEL = "llama-3.1-8b-instant"  # Optimized for token limits
+VISION_MODEL = "Qwen/Qwen3.5-397B-A17B:together"
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+```
+
+## Paths
+** PDF_UPLOAD_FOLDER = "data/pdfs"
+** VECTOR_STORE_PATH = "data/vectorstore"
+
+## Processing Parameters
+** CHUNK_SIZE = 500
+** CHUNK_OVERLAP = 50
+** MAX_IMAGES_PER_PDF = 100
+** SEARCH_RESULTS_COUNT = 10
+## 🚀 Usage Guide
+### Starting the Application
+bash ```
+streamlit run main.py
+```
+## Workflow
+Document Upload
+
+Place PDFs in data/pdfs/ folder
+
+Or upload via sidebar interface
+
+Automatic text extraction & chunking
+
+Image Processing
+
+Qwen 3.5 Vision analyzes charts/graphs
+
+Generates detailed descriptions
+
+Stores with page references
+
+Ask Questions
+
+text
+🔍 Example Queries:
+- "What outliers were found in my EDA project?"
+- "Explain the function calculate_mean() in my code"
+- "Find all classes related to data visualization"
+- "Debug this error: KeyError in dictionary"
+- "Show me examples of list comprehension"
+Get Answers with Sources
+
+text
+📊 WHAT YOUR DOCUMENT SAYS
+According to your EDA report (Page 8):
+- **19 outliers** detected in Income variable
+- Premium "High-Income Customers" segment identified
+
+🔍 DETAILED ANALYSIS
+The Z-score method used shows significance at p < 0.05...
+
+📚 Sources (3)
+• From EDA_Portfolio.pdf, Page 8
+• From Python_Guide.pdf, Page 23
+📊 Component Details
+1. PDF Extractor
+python
+class PDFExtractor:
+    - extract_text(): Page-level text extraction
+    - extract_images(): Base64 image extraction
+    - metadata preservation: page numbers, document names
+2. Multimodal Processor
+python
+class MultimodalProcessor:
+    - generate_image_description(): Qwen 3.5 Vision integration
+    - create_text_embedding(): Vector embeddings
+    - process_image_for_rag(): Complete pipeline
+3. Vector Store
+python
+class VectorStore:
+    - create_from_documents(): FAISS index creation
+    - add_documents(): Incremental updates
+    - search(): Semantic similarity search
+    - load_existing(): Persistent storage
+4. Multi-Agent System
+python
+class SupervisorAgent:
+    - run(): Orchestrates all agents
+    - prioritizes document info over web
+    - synthesizes final answers
 
