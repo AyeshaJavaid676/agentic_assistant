@@ -1,7 +1,7 @@
 import requests
 
 url = "https://router.huggingface.co/models/distilgpt2"
-token = "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"
+token = HF_TOKEN
 
 prompt = """
 Why lion is king of jungle?
