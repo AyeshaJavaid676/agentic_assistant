@@ -12,7 +12,7 @@ class MultimodalProcessor:
         """Initialize both vision and embedding models"""
         # Don't create client here - just store config
         self.base_url = "https://router.huggingface.co/v1"
-        self.api_key = "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"
+        self.api_key = HF_TOKEN
         self.vision_model = "Qwen/Qwen3.5-397B-A17B:together"
         
         # Embedding model for text (using sentence-transformers)
