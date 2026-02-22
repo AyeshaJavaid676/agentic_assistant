@@ -46,7 +46,7 @@
 | **🎨 Modern UI** | Streamlit interface with falling snow animation |
 
 ## 🏗️ System Architecture
-*(Section content to be added)*
+![Medical Advice Engine Diagram](https://raw.githubusercontent.com/AyeshaJavaid676/Final-Project-AI-Doctor/main/Tech_Diagram.jpeg)
 
 ## 🤖 Agent Responsibilities Matrix
 
