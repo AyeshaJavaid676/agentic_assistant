@@ -3,7 +3,7 @@ import base64
 from PIL import Image
 import io
 
-HF_TOKEN = "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"
+HF_TOKEN = HF_TOKEN
 
 # Create test image
 img = Image.new('RGB', (100, 100), color='blue')
