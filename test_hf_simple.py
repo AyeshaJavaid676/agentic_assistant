@@ -4,7 +4,7 @@ from huggingface_hub import InferenceClient
 
 # --- CONFIGURATION ---
 # 1. Put your token here (Ensure it has 'Inference Provider' permissions)
-HF_TOKEN = "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" 
+HF_TOKEN = HF_TOKEN 
 
 # 2. Put your IMAGE PATH here (e.g., "chart.png" or "C:/Users/Images/photo.jpg")
 IMAGE_FILE_PATH = r"C:\Users\Optiplex\Downloads\EDA4.png" 
