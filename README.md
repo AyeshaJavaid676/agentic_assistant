@@ -47,3 +47,16 @@
 
 ## 🏗️ System Architecture
 *(Section content to be added)*
+
+## 🤖 Agent Responsibilities Matrix
+
+| Agent | Primary Role | Tools Used | Response Type |
+| :--- | :--- | :--- | :--- |
+| **Supervisor** | Orchestration, routing | All agents | Decision making |
+| **Code Expert** | Code search & analysis | FAISS, VectorDB | Code snippets, functions |
+| **Code Explainer** | Concept explanation | Groq LLM | Tutorials, explanations |
+| **Code Debugger** | Error diagnosis | Groq LLM | Bug fixes, solutions |
+| **Web Researcher** | External data | DuckDuckGo | Current info, docs |
+| **Synthesizer** | Final compilation | Groq LLM | Comprehensive answers |
+
+---
