@@ -60,3 +60,34 @@
 | **Synthesizer** | Final compilation | Groq LLM | Comprehensive answers |
 
 ---
+
+## 📁 Project Structure
+
+```text
+📦 agentic_assistant/
+├── 📂 config/
+│   └── settings.py                 # Environment & API configuration
+├── 📂 modules/
+│   ├── pdf_extractor.py            # PDF text & image extraction
+│   ├── multimodal_processor.py      # Qwen 3.5 Vision integration
+│   ├── vector_store.py              # FAISS vector database management
+│   ├── multi_agent.py               # Multi-agent system implementation
+│   ├── web_search.py                # DuckDuckGo integration
+│   └── tts_service.py               # Text-to-speech functionality
+├── 📂 utils/
+│   └── helpers.py                   # Utility functions
+├── 📂 data/
+│   ├── 📂 pdfs/                     # Uploaded PDF storage
+│   └── 📂 vectorstore/                # FAISS index & metadata
+├── 📂 tests/
+│   ├── test_multiagent.py            # Agent system tests
+│   └── test_vision.py                 # Vision model tests
+├── main.py                            # Streamlit application
+├── preload_vectorstore.py              # Document pre-processing
+├── .env                                # Environment variables
+├── .gitignore                          # Git ignore rules
+├── Pipfile                             # Pipenv dependencies
+├── Pipfile.lock                         # Locked dependencies
+├── requirements.txt                     # pip requirements
+└── README.md                            # This file
+
