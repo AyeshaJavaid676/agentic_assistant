@@ -4,7 +4,7 @@ from PIL import Image
 import io
 
 # Your token
-HF_TOKEN = "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"  # Replace with actual token
+HF_TOKEN = HF_TOKEN  # Replace with actual token
 
 # Create test image
 img = Image.new('RGB', (100, 100), color='blue')
