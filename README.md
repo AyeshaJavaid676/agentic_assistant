@@ -27,7 +27,7 @@
 | **🎨 Modern UI** | Streamlit interface with falling snow animation |
 
 ## 🏗️ System Architecture
-![Architecture Diagram](https://raw.githubusercontent.com/AyeshaJavaid676/agentic_assistant/master/System%20Architecture.jpeg)
+![Architecture Diagram](https://raw.githubusercontent.com/AyeshaJavaid676/agentic_assistant/master/System%20Architecture%20Diagram.jpeg)
 
 ## 🤖 Agent Responsibilities Matrix
 
