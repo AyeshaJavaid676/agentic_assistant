@@ -37,7 +37,7 @@
 | **Code Expert** | Code search & analysis | FAISS, VectorDB | Code snippets, functions |
 | **Code Explainer** | Concept explanation | Groq LLM | Tutorials, explanations |
 | **Code Debugger** | Error diagnosis | Groq LLM | Bug fixes, solutions |
-| **Web Researcher** | External data | DuckDuckGo | Current info, docs |
+| **Web Researcher** | External data | Tavily | Current info, docs |
 | **Synthesizer** | Final compilation | Groq LLM | Comprehensive answers |
 
 ---
@@ -88,11 +88,15 @@
 * **Groq API Key**
 * **Hugging Face Token**
 
+## Output Example
+
 ![Output Example ](https://raw.githubusercontent.com/AyeshaJavaid676/agentic_assistant/master/Output.jpg)
 ![](https://raw.githubusercontent.com/AyeshaJavaid676/agentic_assistant/master/Output1.jpg)
 ![](https://raw.githubusercontent.com/AyeshaJavaid676/agentic_assistant/master/Output2.jpg)
-
 ![Sequnece Flow Diagram:](https://raw.githubusercontent.com/AyeshaJavaid676/agentic_assistant/master/Agents.jpg)
+## Sequnece Flow Diagram:
+
+
 
 
 
