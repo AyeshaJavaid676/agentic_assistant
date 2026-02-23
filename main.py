@@ -11,7 +11,7 @@ from utils.helpers import cleanup_temp_files
 import time
 import re
 
-# ===== ADD THE FUNCTION HERE =====
+
 def load_existing_pdfs():
     """Load and process all PDFs from data/pdfs folder"""
     pdf_folder = "data/pdfs"
@@ -131,14 +131,198 @@ def extract_sources_from_response(response_text, search_results):
 
 # Page config
 st.set_page_config(
-    page_title="Agentic PDF Assistant",
-    page_icon="📚",
-    layout="wide"
+    page_title="CodeOracle",
+    page_icon="🔮",                 
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://github.com/AyeshaJavaid676/agentic_assistant',
+        'Report a bug': 'https://github.com/AyeshaJavaid676/agentic_assistant/issues',
+        'About': '# CodePilot AI\nYour intelligent coding document assistant!'
+    }
 )
 
-# Title
-st.title("📚 Agentic PDF Assistant")
-st.markdown("Ask questions about your PDFs - upload new ones or query existing documents!")
+# Add custom CSS for falling snow animation
+st.markdown("""
+<style>
+/* Snow animation container */
+.snow-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Snowflake styling */
+.snowflake {
+    position: fixed;
+    color: #fff;
+    user-select: none;
+    pointer-events: none;
+    opacity: 0.8;
+    font-size: 1.5em;
+    animation: fall linear infinite;
+    z-index: 0;
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+/* Different sizes and opacities for depth effect */
+.snowflake:nth-child(1) { left: 10%; animation-duration: 10s; font-size: 1.2em; opacity: 0.6; }
+.snowflake:nth-child(2) { left: 20%; animation-duration: 12s; font-size: 1.5em; opacity: 0.8; }
+.snowflake:nth-child(3) { left: 30%; animation-duration: 8s; font-size: 1em; opacity: 0.5; }
+.snowflake:nth-child(4) { left: 40%; animation-duration: 15s; font-size: 1.8em; opacity: 0.9; }
+.snowflake:nth-child(5) { left: 50%; animation-duration: 11s; font-size: 1.3em; opacity: 0.7; }
+.snowflake:nth-child(6) { left: 60%; animation-duration: 9s; font-size: 1.1em; opacity: 0.5; }
+.snowflake:nth-child(7) { left: 70%; animation-duration: 14s; font-size: 1.6em; opacity: 0.8; }
+.snowflake:nth-child(8) { left: 80%; animation-duration: 13s; font-size: 1.4em; opacity: 0.6; }
+.snowflake:nth-child(9) { left: 90%; animation-duration: 16s; font-size: 2em; opacity: 0.9; }
+.snowflake:nth-child(10) { left: 95%; animation-duration: 10s; font-size: 1.2em; opacity: 0.7; }
+
+/* Falling animation */
+@keyframes fall {
+    0% {
+        transform: translateY(-10vh) rotate(0deg);
+    }
+    100% {
+        transform: translateY(100vh) rotate(360deg);
+    }
+}
+
+/* Make sure content is above snow */
+.main > div {
+    position: relative;
+    z-index: 1;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 10px;
+    color: white;
+}
+
+/* Style sidebar to match */
+.css-1d391kg, .css-12oz5g7 {
+    background: rgba(0, 0, 0, 0.4) !important;
+    backdrop-filter: blur(8px) !important;
+}
+
+/* Style chat messages */
+.stChatMessage {
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white !important;
+}
+
+/* Style text input */
+.stChatInputContainer {
+    background: rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Style buttons */
+.stButton > button {
+    background: rgba(255, 255, 255, 0.2) !important;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    color: white !important;
+}
+
+.stButton > button:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+    border: 1px solid white !important;
+}
+
+/* Style text */
+h1, h2, h3, p, label {
+    color: Black !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Style sidebar text */
+.css-1d391kg, .css-12oz5g7, .st-b7, .st-b8, .st-b9, .st-ba {
+    color: Black !important;
+}
+
+/* Style success/info/warning messages */
+.stAlert {
+    background: rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+}
+
+/* Style the main content area */
+.main {
+    background: transparent !important;
+}
+
+/* Style expander */
+.streamlit-expanderHeader {
+    background: rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(5px);
+    color: white !important;
+}
+
+.streamlit-expanderContent {
+    background: rgba(0, 0, 0, 0.2) !important;
+    backdrop-filter: blur(5px);
+    color: white !important;
+}
+
+/* Add a gradient overlay for better readability */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(0,20,40,0.4) 0%, rgba(0,40,80,0.4) 100%);
+    z-index: -1;
+}
+</style>
+
+<!-- Snow container with multiple snowflakes -->
+<div class="snow-container">
+    <div class="snowflake">❄️</div>
+    <div class="snowflake">❄️</div>
+    <div class="snowflake">❄️</div>
+    <div class="snowflake">❄️</div>
+    <div class="snowflake">❄️</div>
+    <div class="snowflake">❄️</div>
+    <div class="snowflake">❄️</div>
+    <div class="snowflake">❄️</div>
+    <div class="snowflake">❄️</div>
+    <div class="snowflake">❄️</div>
+    <!-- Add more for denser snow -->
+    <div class="snowflake">❄️</div>
+    <div class="snowflake">❄️</div>
+    <div class="snowflake">❄️</div>
+    <div class="snowflake">❄️</div>
+    <div class="snowflake">❄️</div>
+</div>
+""", unsafe_allow_html=True)
+
+# Optional: Add a background image behind the snow
+st.markdown("""
+<style>
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+st.title("❄️ CodePilot AI")
+
+
+st.markdown("Ask questions about your Coding PDFs - upload new ones or query existing documents!")
 
 # Initialize session state - MOVED BEFORE any chat elements
 if 'processed' not in st.session_state:
@@ -183,7 +367,7 @@ You can start asking questions about these documents right away! Try asking:
 - "Tell me about the income analysis in my documents"
 - "What are the key findings in my PDFs?"
 
-*No need to upload anything - your documents are already loaded!* 🎉"""
+*Insight Awaits!!* 🎉"""
     
     st.session_state.chat_history.append({
         "role": "assistant",
@@ -370,10 +554,10 @@ with st.sidebar:
             st.session_state.chat_history = []
             st.rerun()
 
-# ===== CHAT INTERFACE - ALWAYS VISIBLE =====
+# ===== CHAT INTERFACE =====
 st.divider()
 
-# Display chat history (even if no PDF is processed yet)
+# Display chat history
 chat_container = st.container()
 
 with chat_container:
@@ -425,7 +609,7 @@ with chat_container:
                             except Exception as e:
                                 st.error(f"🔊 Audio Error: {str(e)}")
 
-# Chat input - ALWAYS VISIBLE
+# Chat input
 question = st.chat_input(
     "Ask a question about your PDFs...",
     key="chat_input"
