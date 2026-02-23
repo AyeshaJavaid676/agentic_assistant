@@ -2,7 +2,7 @@ from langchain_core.tools import tool, Tool
 from langchain_classic.agents import AgentExecutor, create_react_agent
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser  # Add this
+from langchain_core.output_parsers import StrOutputParser  
 from config.settings import GROQ_API_KEY, LLM_MODEL
 from modules.web_search import WebSearch 
 import os
@@ -352,9 +352,6 @@ class CodeSynthesizerAgent(BaseSpecialistAgent):
             description=self.description
         )
 
-
-# Keep all your other agent classes (CodeDocumentExpertAgent, WebResearcherAgent, etc.)
-# and CodingSupervisorAgent - they remain the same
 class CodeDocumentExpertAgent(BaseSpecialistAgent):
     """Specialist agent for searching and explaining code in documents"""
     def __init__(self, vectorstore):
