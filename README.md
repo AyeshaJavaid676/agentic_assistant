@@ -84,9 +84,9 @@
 
 ### Prerequisites
 * **Python 3.13+**
-* **Git**
 * **Groq API Key**
 * **Hugging Face Token**
+* **Tavily SearchAPI KEy**
 
 ## Output Example
 
