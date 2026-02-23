@@ -38,7 +38,7 @@
 | **🖼️ Vision Understanding** | Qwen 3.5 Vision integration for charts, graphs, and images |
 | **🤖 5 Specialized Agents** | Code Expert, Code Explainer, Code Debugger, Web Researcher, Synthesizer |
 | **🔍 Semantic Search** | FAISS vector database with HuggingFace embeddings |
-| **🌐 Web Integration** | Real-time web research via DuckDuckGo |
+| **🌐 Web Integration** | Real-time web research via Tavily |
 | **💬 Conversational Memory** | Full chat history with context retention |
 | **🔊 Text-to-Speech** | gTTS integration for audio responses |
 | **📊 Source Citation** | Page-level references for all answers |
