@@ -4,7 +4,7 @@ import base64
 # Your working token
 client = OpenAI(
     base_url="https://router.huggingface.co/v1", 
-    api_key="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" 
+    api_key= HF_TOKEN 
 )
 
 # Read and encode your specific image
